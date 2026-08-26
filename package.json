@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/app/main.ts",
+    "db:migrate": "tsx src/infrastructure/migrate-cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "format:check": "prettier --check ."
