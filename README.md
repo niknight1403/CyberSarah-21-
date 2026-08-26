@@ -4,7 +4,7 @@
 
 ## Status
 
-Dieses Repository befindet sich aktuell in der Initialisierungsphase. Die gegenwärtige Codebasis besteht aus dieser Projektbeschreibung und der Integrationsdokumentation unter [`docs/REPOSITORY_COMPARISON.md`](docs/REPOSITORY_COMPARISON.md).
+Dieses Repository befindet sich aktuell in der Initialisierungsphase. Die gegenwärtige Codebasis besteht aus dieser Projektbeschreibung sowie den technischen Grundlagen in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) und der Integrationsdokumentation unter [`docs/REPOSITORY_COMPARISON.md`](docs/REPOSITORY_COMPARISON.md).
 
 ## Repository-Entscheidung
 
