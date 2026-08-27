@@ -4,7 +4,7 @@
 
 ## Status
 
-Dieses Repository befindet sich aktuell in der Initialisierungsphase. Die gegenwärtige Codebasis besteht aus dieser Projektbeschreibung sowie den technischen Grundlagen in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), dem MVP-Plan in [`docs/MVP_IMPLEMENTATION_PLAN.md`](docs/MVP_IMPLEMENTATION_PLAN.md), der Provider-/Datenbanknotiz in [`docs/REAL_PROVIDER_DATABASE.md`](docs/REAL_PROVIDER_DATABASE.md) und der Integrationsdokumentation unter [`docs/REPOSITORY_COMPARISON.md`](docs/REPOSITORY_COMPARISON.md).
+Dieses Repository befindet sich aktuell in der Initialisierungsphase. Die gegenwärtige Codebasis besteht aus dieser Projektbeschreibung sowie den technischen Grundlagen in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), dem MVP-Plan in [`docs/MVP_IMPLEMENTATION_PLAN.md`](docs/MVP_IMPLEMENTATION_PLAN.md), der Provider-/Datenbanknotiz in [`docs/REAL_PROVIDER_DATABASE.md`](docs/REAL_PROVIDER_DATABASE.md), der externen API-Dokumentation in [`docs/API.md`](docs/API.md) und der OpenAPI-Spezifikation in [`docs/openapi.yaml`](docs/openapi.yaml) sowie der Integrationsdokumentation unter [`docs/REPOSITORY_COMPARISON.md`](docs/REPOSITORY_COMPARISON.md).
 
 ## Repository-Entscheidung
 

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/app/main.ts",
+    "api": "tsx src/api/http-server.ts",
     "db:migrate": "tsx src/infrastructure/migrate-cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

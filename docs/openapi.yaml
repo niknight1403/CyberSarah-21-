@@ -1,0 +1,123 @@
+openapi: 3.0.3
+info:
+  title: CyberSarah API
+  version: 1.0.0
+  description: Versionierte HTTP-API für externe CyberSarah-Clients.
+servers:
+  - url: http://localhost:3000
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/health:
+    get:
+      security: []
+      responses:
+        '200':
+          description: Dienst ist erreichbar.
+  /api/v1/conversations:
+    get:
+      summary: Eigene Gespräche auflisten
+      responses:
+        '200':
+          description: Gesprächsliste
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Gespräch erstellen
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 120
+      responses:
+        '201':
+          description: Erstelltes Gespräch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /api/v1/conversations/{conversationId}/messages:
+    parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Nachrichten eines eigenen Gesprächs laden
+      responses:
+        '200':
+          description: Nachrichtenliste
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      summary: Nachricht senden und KI-Antwort erzeugen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  minLength: 1
+                  maxLength: 8000
+      responses:
+        '201':
+          description: Nutzer- und Assistentenantwort
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '502':
+          description: KI-Providerfehler
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    Conversation:
+      type: object
+      required: [id, ownerId, title, createdAt]
+      properties:
+        id: { type: string }
+        ownerId: { type: string }
+        title: { type: string }
+        createdAt: { type: string, format: date-time }
+    ConversationResponse:
+      type: object
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/Conversation' }
+        requestId: { type: string }
+    ConversationListResponse:
+      type: object
+      required: [data, requestId]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Conversation' }
+        requestId: { type: string }
+  responses:
+    Unauthorized:
+      description: Fehlendes oder ungültiges Bearer-Token.
+    Forbidden:
+      description: Ressource gehört einem anderen Nutzer.
+    NotFound:
+      description: Ressource oder Route nicht gefunden.
+    BadRequest:
+      description: Ungültige Anfrage.
