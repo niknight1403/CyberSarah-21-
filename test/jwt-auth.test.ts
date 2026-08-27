@@ -14,7 +14,7 @@ const config: JwtConfig = {
 
 describe("JWT authentication", () => {
   it("issues and verifies a signed access token", () => {
-    const issued = issueAccessToken("client-a", "user", config, 1_000);
+    const issued = issueAccessToken("client-a", "user", config, [], 1_000);
     const claims = verifyAccessToken(issued.accessToken, config, 1_001);
     expect(claims).toMatchObject({
       sub: "client-a",
@@ -25,7 +25,7 @@ describe("JWT authentication", () => {
   });
 
   it("rejects tampered, expired, and wrong-audience tokens", () => {
-    const issued = issueAccessToken("client-a", "user", config, 1_000);
+    const issued = issueAccessToken("client-a", "user", config, [], 1_000);
     const [header, payload, signature] = issued.accessToken.split(".");
     expect(() =>
       verifyAccessToken(`${header}.${payload}x.${signature}`, config, 1_001),

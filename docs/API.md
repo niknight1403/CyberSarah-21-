@@ -45,6 +45,18 @@ curl -X POST http://localhost:3000/api/v1/conversations \
 
 Jede Antwort enthält eine `requestId`. Fehler folgen dem einheitlichen Format `{ "error": { "code": "...", "message": "..." }, "requestId": "..." }`. Request-Bodies sind auf 1 MB begrenzt; Nachrichten dürfen höchstens 8.000 Zeichen enthalten.
 
+## Rollen und Berechtigungen
+
+API-Clients besitzen genau eine Rolle und eine explizite Scope-Liste. `user` ist die Standardrolle für Conversation-Zugriff, `moderator` ist für spätere Moderationsfunktionen reserviert und `admin` erhält administrativen Zugriff. Zusätzlich gilt das Least-Privilege-Prinzip: `conversations:read` erlaubt Lesen, `conversations:write` erlaubt Erstellen und Nachrichtenversand, `clients:read` erlaubt Clientauflistung und `clients:manage` erlaubt Erstellung sowie Widerruf. Die Rolle `admin` bypassed die Scope-Prüfung für die aktuelle MVP-Adminfläche.
+
+| Endpunkt                                 | Erforderliche Berechtigung          | Zweck                                 |
+| ---------------------------------------- | ----------------------------------- | ------------------------------------- |
+| `GET /api/v1/admin/clients`              | `clients:read` oder Rolle `admin`   | Clients ohne Secrets auflisten        |
+| `POST /api/v1/admin/clients`             | `clients:manage` oder Rolle `admin` | Client mit Rolle und Scopes erstellen |
+| `POST /api/v1/admin/clients/{id}/revoke` | `clients:manage` oder Rolle `admin` | Client widerrufen                     |
+
+Rollen und Scopes werden in den signierten JWT-Claims mitgeführt. Jeder geschützte Request prüft zusätzlich den aktuellen Clientstatus in SQLite, sodass widerrufene oder abgelaufene Clients trotz noch nicht abgelaufenem JWT keine API-Ressourcen mehr erreichen.
+
 ## Clientverwaltung und Token-Rotation
 
 API-Clients werden in der SQLite-Tabelle `api_clients` verwaltet. Secrets werden ausschließlich als gesalzene scrypt-Hashes gespeichert und nach Erstellung oder Rotation genau einmal ausgegeben. Ein `active`-Client kann Tokens ausstellen; `revoked`- oder abgelaufene Clients werden sowohl beim Token-Endpunkt als auch bei jedem geschützten API-Request abgewiesen.

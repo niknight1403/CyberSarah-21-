@@ -70,6 +70,49 @@ paths:
                   client_secret: { type: string, format: password }
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /api/v1/admin/clients:
+    get:
+      summary: API-Clients auflisten
+      responses:
+        "200":
+          description: Clientliste ohne Secrets
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      summary: API-Client mit Rolle und Scopes erstellen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 120 }
+                role: { type: string, enum: [user, moderator, admin] }
+                scopes:
+                  type: array
+                  items: { type: string }
+      responses:
+        "201":
+          description: Neuer Client; Secret wird nur einmal ausgegeben
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/admin/clients/{clientId}/revoke:
+    post:
+      summary: API-Client widerrufen
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Client widerrufen
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /api/v1/conversations:
     get:
       summary: Eigene Gespräche auflisten

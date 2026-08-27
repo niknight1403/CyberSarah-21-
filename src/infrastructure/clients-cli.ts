@@ -1,11 +1,24 @@
-import { openSqliteClientStore } from "./client-repository.js";
+import {
+  DEFAULT_CLIENT_SCOPES,
+  openSqliteClientStore,
+  type ClientRole,
+} from "./client-repository.js";
 
 const [command, ...args] = process.argv.slice(2);
 const store = openSqliteClientStore();
 try {
   if (command === "create") {
     const name = requiredOption(args, "--name");
-    const created = store.clients.create(name);
+    const role = optionalRole(args, "--role");
+    const scopes = optionalScopes(args, "--scopes");
+    const created = store.clients.create(
+      name,
+      undefined,
+      undefined,
+      undefined,
+      role,
+      scopes,
+    );
     console.log(
       JSON.stringify(
         {
@@ -48,6 +61,32 @@ try {
   }
 } finally {
   store.close();
+}
+
+function optionalRole(args: string[], option: string): ClientRole {
+  const value = optionalOption(args, option);
+  if (!value) return "user";
+  if (value === "user" || value === "moderator" || value === "admin")
+    return value;
+  throw new Error(`Invalid ${option}.`);
+}
+
+function optionalScopes(args: string[], option: string): readonly string[] {
+  const value = optionalOption(args, option);
+  if (!value) return DEFAULT_CLIENT_SCOPES;
+  const scopes = value
+    .split(",")
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+  if (!scopes.length) throw new Error(`Invalid ${option}.`);
+  return [...new Set(scopes)];
+}
+
+function optionalOption(args: string[], option: string): string | undefined {
+  const index = args.indexOf(option);
+  const value = index >= 0 ? args[index + 1] : undefined;
+  if (value?.startsWith("--")) throw new Error(`Missing value for ${option}.`);
+  return value;
 }
 
 function requiredOption(args: string[], option: string): string {

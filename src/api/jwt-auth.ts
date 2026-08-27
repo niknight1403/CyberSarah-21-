@@ -11,6 +11,7 @@ export interface JwtConfig {
 export interface JwtClaims {
   readonly sub: string;
   readonly role: "user" | "moderator" | "admin";
+  readonly scopes: readonly string[];
   readonly iss: string;
   readonly aud: string;
   readonly iat: number;
@@ -24,6 +25,7 @@ export function issueAccessToken(
   subject: string,
   role: JwtClaims["role"],
   config: JwtConfig,
+  scopes: readonly string[] = [],
   nowSeconds = Math.floor(Date.now() / 1000),
 ): { accessToken: string; expiresIn: number; claims: JwtClaims } {
   if (!config.secret || config.secret.length < 32) {
@@ -35,6 +37,7 @@ export function issueAccessToken(
   const claims: JwtClaims = {
     sub: subject,
     role,
+    scopes: [...new Set(scopes)],
     iss: config.issuer,
     aud: config.audience,
     iat: nowSeconds,
@@ -121,6 +124,8 @@ function isClaims(value: unknown): value is JwtClaims {
     (claims.role === "user" ||
       claims.role === "moderator" ||
       claims.role === "admin") &&
+    Array.isArray(claims.scopes) &&
+    claims.scopes.every((scope) => typeof scope === "string") &&
     typeof claims.iss === "string" &&
     typeof claims.aud === "string" &&
     typeof claims.iat === "number" &&

@@ -6,10 +6,17 @@ import { defaultMigrationsDirectory, migrate } from "./migrations.js";
 import { newId } from "../modules/conversations/conversations.js";
 
 export type ClientStatus = "active" | "revoked";
+export type ClientRole = "user" | "moderator" | "admin";
+export const DEFAULT_CLIENT_SCOPES = [
+  "conversations:read",
+  "conversations:write",
+] as const;
 export interface ApiClient {
   readonly clientId: string;
   readonly name: string;
   readonly status: ClientStatus;
+  readonly role: ClientRole;
+  readonly scopes: readonly string[];
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly lastUsedAt?: Date;
@@ -25,6 +32,8 @@ type ClientRow = {
   name: string;
   secret_hash: string;
   status: ClientStatus;
+  role: ClientRole;
+  scopes: string;
   created_at: string;
   updated_at: string;
   last_used_at: string | null;
@@ -41,12 +50,18 @@ export function openSqliteClientStore(
   const clients = new SqliteClientRepository(db);
   const bootstrapId = process.env.JWT_CLIENT_ID;
   const bootstrapSecret = process.env.JWT_CLIENT_SECRET;
+  const bootstrapRole = parseRole(process.env.JWT_CLIENT_ROLE);
+  const bootstrapScopes = process.env.JWT_CLIENT_SCOPES?.split(",")
+    .map((scope) => scope.trim())
+    .filter(Boolean);
   if (bootstrapId && bootstrapSecret && !clients.find(bootstrapId)) {
     clients.create(
       "Bootstrapped environment client",
       bootstrapId,
       undefined,
       bootstrapSecret,
+      bootstrapRole,
+      bootstrapScopes?.length ? bootstrapScopes : DEFAULT_CLIENT_SCOPES,
     );
   }
   return { clients, close: () => db.close() };
@@ -60,18 +75,22 @@ export class SqliteClientRepository {
     clientId = `client_${newId()}`,
     expiresAt?: Date,
     suppliedSecret?: string,
+    role: ClientRole = "user",
+    scopes: readonly string[] = DEFAULT_CLIENT_SCOPES,
   ): IssuedClientSecret {
     const now = new Date();
     const clientSecret =
       suppliedSecret ?? `csec_${randomBytes(32).toString("base64url")}`;
     this.db
       .prepare(
-        "INSERT INTO api_clients (client_id, name, secret_hash, status, created_at, updated_at, expires_at) VALUES (?, ?, ?, 'active', ?, ?, ?)",
+        "INSERT INTO api_clients (client_id, name, secret_hash, status, role, scopes, created_at, updated_at, expires_at) VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?)",
       )
       .run(
         clientId,
         name.trim(),
         hashSecret(clientSecret),
+        role,
+        JSON.stringify([...new Set(scopes)]),
         now.toISOString(),
         now.toISOString(),
         expiresAt?.toISOString() ?? null,
@@ -170,11 +189,29 @@ export class SqliteClientRepository {
       clientId: row.client_id,
       name: row.name,
       status: row.status,
+      role: row.role,
+      scopes: parseScopes(row.scopes),
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
       ...(row.last_used_at ? { lastUsedAt: new Date(row.last_used_at) } : {}),
       ...(row.expires_at ? { expiresAt: new Date(row.expires_at) } : {}),
     };
+  }
+}
+
+function parseRole(value: string | undefined): ClientRole {
+  return value === "admin" || value === "moderator" ? value : "user";
+}
+
+function parseScopes(value: string): string[] {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) &&
+      parsed.every((scope) => typeof scope === "string")
+      ? parsed
+      : [...DEFAULT_CLIENT_SCOPES];
+  } catch {
+    return [...DEFAULT_CLIENT_SCOPES];
   }
 }
 

@@ -9,10 +9,17 @@ const previousDatabasePath = process.env.DATABASE_PATH;
 const previousJwtSecret = process.env.JWT_SECRET;
 const previousClientId = process.env.JWT_CLIENT_ID;
 const previousClientSecret = process.env.JWT_CLIENT_SECRET;
+const previousClientRole = process.env.JWT_CLIENT_ROLE;
+const previousClientScopes = process.env.JWT_CLIENT_SCOPES;
+const previousAuthRateLimit = process.env.AUTH_RATE_LIMIT_MAX;
 process.env.DATABASE_PATH = join(directory, "api.sqlite");
 process.env.JWT_SECRET = "test-jwt-secret-that-is-at-least-32-characters-long";
 process.env.JWT_CLIENT_ID = "client-a";
 process.env.JWT_CLIENT_SECRET = "client-secret";
+process.env.JWT_CLIENT_ROLE = "admin";
+process.env.JWT_CLIENT_SCOPES =
+  "clients:read,clients:manage,conversations:read,conversations:write";
+process.env.AUTH_RATE_LIMIT_MAX = "20";
 let currentClientSecret = "client-secret";
 const server = createApiServer();
 
@@ -33,6 +40,13 @@ afterAll(async () => {
   else process.env.JWT_CLIENT_ID = previousClientId;
   if (previousClientSecret === undefined) delete process.env.JWT_CLIENT_SECRET;
   else process.env.JWT_CLIENT_SECRET = previousClientSecret;
+  if (previousClientRole === undefined) delete process.env.JWT_CLIENT_ROLE;
+  else process.env.JWT_CLIENT_ROLE = previousClientRole;
+  if (previousClientScopes === undefined) delete process.env.JWT_CLIENT_SCOPES;
+  else process.env.JWT_CLIENT_SCOPES = previousClientScopes;
+  if (previousAuthRateLimit === undefined)
+    delete process.env.AUTH_RATE_LIMIT_MAX;
+  else process.env.AUTH_RATE_LIMIT_MAX = previousAuthRateLimit;
 });
 
 function url(path: string): string {
@@ -106,6 +120,52 @@ describe.sequential("HTTP API", () => {
       }),
     });
     expect(newTokenResponse.status).toBe(200);
+  });
+
+  it("allows an admin to manage clients", async () => {
+    const accessToken = await getToken();
+    const adminHeaders = {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    };
+    const createResponse = await fetch(url("/api/v1/admin/clients"), {
+      method: "POST",
+      headers: adminHeaders,
+      body: JSON.stringify({
+        name: "Managed client",
+        role: "user",
+        scopes: ["conversations:read"],
+      }),
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as {
+      data: { client: { clientId: string }; client_secret: string };
+    };
+    expect(created.data.client.clientId).toBeTruthy();
+    expect(created.data.client_secret).toMatch(/^csec_/);
+
+    const listResponse = await fetch(url("/api/v1/admin/clients"), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    expect(listResponse.status).toBe(200);
+    expect((await listResponse.json()).data).toHaveLength(2);
+
+    const userTokenResponse = await fetch(url("/api/v1/auth/token"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grant_type: "client_credentials",
+        client_id: created.data.client.clientId,
+        client_secret: created.data.client_secret,
+      }),
+    });
+    const { access_token: userToken } = (await userTokenResponse.json()) as {
+      access_token: string;
+    };
+    const forbidden = await fetch(url("/api/v1/admin/clients"), {
+      headers: { Authorization: `Bearer ${userToken}` },
+    });
+    expect(forbidden.status).toBe(403);
   });
 
   it("creates and lists conversations for the JWT subject", async () => {

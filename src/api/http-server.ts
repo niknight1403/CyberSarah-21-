@@ -11,7 +11,11 @@ import {
   type JwtConfig,
 } from "./jwt-auth.js";
 import { AppError } from "../shared/errors.js";
-import { openSqliteClientStore } from "../infrastructure/client-repository.js";
+import {
+  DEFAULT_CLIENT_SCOPES,
+  openSqliteClientStore,
+  type ClientRole,
+} from "../infrastructure/client-repository.js";
 import {
   ApiSecurity,
   securityConfigFromEnv,
@@ -121,10 +125,69 @@ export async function handleRequest(
     clientStore.close();
     const app = createApplication(claims.sub);
     try {
+      if (url.pathname === `${API_PREFIX}/admin/clients`) {
+        requireScope(
+          claims,
+          request.method === "GET" ? "clients:read" : "clients:manage",
+        );
+        const store = openSqliteClientStore();
+        try {
+          if (request.method === "GET")
+            return sendJson(response, 200, {
+              data: store.clients.list(),
+              requestId,
+            });
+          const body = await readJson(request);
+          const name = stringField(body, "name", true)!;
+          const role = clientRoleField(body.role);
+          const scopes = scopesField(body.scopes);
+          const created = store.clients.create(
+            name,
+            undefined,
+            undefined,
+            undefined,
+            role,
+            scopes,
+          );
+          return sendJson(response, 201, {
+            data: {
+              client: created.client,
+              client_secret: created.clientSecret,
+            },
+            requestId,
+          });
+        } finally {
+          store.close();
+        }
+      }
+      const revokeMatch = new RegExp(
+        `^${API_PREFIX}/admin/clients/([^/]+)/revoke$`,
+      ).exec(url.pathname);
+      if (request.method === "POST" && revokeMatch) {
+        requireScope(claims, "clients:manage");
+        const store = openSqliteClientStore();
+        try {
+          const revoked = store.clients.revoke(
+            decodeURIComponent(revokeMatch[1]!),
+          );
+          if (!revoked)
+            throw new AppError(
+              "NOT_FOUND",
+              "Client was not found or already revoked.",
+            );
+          return sendJson(response, 200, {
+            data: { status: "revoked" },
+            requestId,
+          });
+        } finally {
+          store.close();
+        }
+      }
       if (
         request.method === "GET" &&
         url.pathname === `${API_PREFIX}/conversations`
       ) {
+        requireScope(claims, "conversations:read");
         return sendJson(response, 200, {
           data: await app.conversationService.listMine(),
           requestId,
@@ -134,6 +197,7 @@ export async function handleRequest(
         request.method === "POST" &&
         url.pathname === `${API_PREFIX}/conversations`
       ) {
+        requireScope(claims, "conversations:write");
         const body = await readJson(request);
         const conversation = await app.conversationService.create(
           stringField(body, "title", false) ?? undefined,
@@ -156,12 +220,14 @@ export async function handleRequest(
       const isMessagesRoute = url.pathname.endsWith("/messages");
 
       if (request.method === "GET" && isMessagesRoute) {
+        requireScope(claims, "conversations:read");
         return sendJson(response, 200, {
           data: await app.conversationService.getMessages(conversationId),
           requestId,
         });
       }
       if (request.method === "POST" && isMessagesRoute) {
+        requireScope(claims, "conversations:write");
         const body = await readJson(request);
         const message = await app.conversationService.sendUserMessage(
           conversationId,
@@ -281,7 +347,12 @@ async function issueToken(
     );
     if (!client)
       throw new AppError("UNAUTHORIZED", "Invalid client credentials.");
-    const token = issueAccessToken(client.clientId, "user", jwtConfig);
+    const token = issueAccessToken(
+      client.clientId,
+      client.role,
+      jwtConfig,
+      client.scopes,
+    );
     return sendJson(response, 200, {
       access_token: token.accessToken,
       token_type: "Bearer",
@@ -342,6 +413,35 @@ function setRateLimitHeaders(
   response.setHeader("X-RateLimit-Limit", rate.limit);
   response.setHeader("X-RateLimit-Remaining", rate.remaining);
   response.setHeader("X-RateLimit-Reset", Math.ceil(rate.resetAt / 1000));
+}
+
+function requireScope(
+  claims: { role: "user" | "moderator" | "admin"; scopes: readonly string[] },
+  scope: string,
+): void {
+  if (claims.role === "admin" || claims.scopes.includes(scope)) return;
+  throw new AppError("FORBIDDEN", `Missing required scope: ${scope}.`);
+}
+
+function clientRoleField(value: unknown): ClientRole {
+  if (value === undefined) return "user";
+  if (value === "user" || value === "moderator" || value === "admin")
+    return value;
+  throw new AppError("VALIDATION_ERROR", "role is invalid.");
+}
+
+function scopesField(value: unknown): readonly string[] {
+  if (value === undefined) return DEFAULT_CLIENT_SCOPES;
+  if (
+    !Array.isArray(value) ||
+    value.some((scope) => typeof scope !== "string" || !scope.trim())
+  ) {
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "scopes must be a non-empty string array.",
+    );
+  }
+  return [...new Set(value.map((scope) => scope.trim()))];
 }
 
 function statusFor(code: AppError["code"]): number {
