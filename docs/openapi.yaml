@@ -14,6 +14,35 @@ paths:
       responses:
         '200':
           description: Dienst ist erreichbar.
+  /api/v1/auth/token:
+    post:
+      security: []
+      summary: JWT für einen externen Client ausstellen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [grant_type, client_id, client_secret]
+              properties:
+                grant_type: { type: string, enum: [client_credentials] }
+                client_id: { type: string }
+                client_secret: { type: string, format: password }
+      responses:
+        '200':
+          description: Signiertes Zugriffstoken
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in]
+                properties:
+                  access_token: { type: string }
+                  token_type: { type: string, enum: [Bearer] }
+                  expires_in: { type: integer }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /api/v1/conversations:
     get:
       summary: Eigene Gespräche auflisten

@@ -6,9 +6,13 @@ import { createApiServer } from "../src/api/http-server.js";
 
 const directory = mkdtempSync(join(tmpdir(), "cybersarah-api-"));
 const previousDatabasePath = process.env.DATABASE_PATH;
-const previousToken = process.env.CYBERSARAH_API_TOKEN;
+const previousJwtSecret = process.env.JWT_SECRET;
+const previousClientId = process.env.JWT_CLIENT_ID;
+const previousClientSecret = process.env.JWT_CLIENT_SECRET;
 process.env.DATABASE_PATH = join(directory, "api.sqlite");
-process.env.CYBERSARAH_API_TOKEN = "test-api-token";
+process.env.JWT_SECRET = "test-jwt-secret-that-is-at-least-32-characters-long";
+process.env.JWT_CLIENT_ID = "client-a";
+process.env.JWT_CLIENT_SECRET = "client-secret";
 const server = createApiServer();
 
 beforeAll(async () => {
@@ -22,8 +26,12 @@ afterAll(async () => {
   rmSync(directory, { recursive: true, force: true });
   if (previousDatabasePath === undefined) delete process.env.DATABASE_PATH;
   else process.env.DATABASE_PATH = previousDatabasePath;
-  if (previousToken === undefined) delete process.env.CYBERSARAH_API_TOKEN;
-  else process.env.CYBERSARAH_API_TOKEN = previousToken;
+  if (previousJwtSecret === undefined) delete process.env.JWT_SECRET;
+  else process.env.JWT_SECRET = previousJwtSecret;
+  if (previousClientId === undefined) delete process.env.JWT_CLIENT_ID;
+  else process.env.JWT_CLIENT_ID = previousClientId;
+  if (previousClientSecret === undefined) delete process.env.JWT_CLIENT_SECRET;
+  else process.env.JWT_CLIENT_SECRET = previousClientSecret;
 });
 
 function url(path: string): string {
@@ -33,6 +41,20 @@ function url(path: string): string {
   return `http://127.0.0.1:${address.port}${path}`;
 }
 
+async function getToken(): Promise<string> {
+  const response = await fetch(url("/api/v1/auth/token"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      grant_type: "client_credentials",
+      client_id: "client-a",
+      client_secret: "client-secret",
+    }),
+  });
+  const body = (await response.json()) as { access_token: string };
+  return body.access_token;
+}
+
 describe("HTTP API", () => {
   it("exposes a public health endpoint", async () => {
     const response = await fetch(url("/api/v1/health"));
@@ -40,19 +62,19 @@ describe("HTTP API", () => {
     expect(await response.json()).toMatchObject({ status: "ok" });
   });
 
-  it("rejects protected requests without a valid token", async () => {
-    const response = await fetch(url("/api/v1/conversations"));
-    expect(response.status).toBe(401);
-    expect(await response.json()).toMatchObject({
-      error: { code: "UNAUTHORIZED" },
-    });
+  it("issues a JWT and rejects protected requests without it", async () => {
+    const unauthorized = await fetch(url("/api/v1/conversations"));
+    expect(unauthorized.status).toBe(401);
+
+    const token = await getToken();
+    expect(token.split(".")).toHaveLength(3);
   });
 
-  it("creates and lists conversations for the authenticated client", async () => {
+  it("creates and lists conversations for the JWT subject", async () => {
+    const accessToken = await getToken();
     const headers = {
-      Authorization: "Bearer test-api-token",
+      Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
-      "X-Client-User-Id": "client-a",
     };
     const createResponse = await fetch(url("/api/v1/conversations"), {
       method: "POST",
@@ -62,10 +84,7 @@ describe("HTTP API", () => {
     expect(createResponse.status).toBe(201);
 
     const listResponse = await fetch(url("/api/v1/conversations"), {
-      headers: {
-        Authorization: "Bearer test-api-token",
-        "X-Client-User-Id": "client-a",
-      },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     expect(listResponse.status).toBe(200);
     expect((await listResponse.json()).data).toHaveLength(1);

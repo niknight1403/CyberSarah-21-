@@ -1,4 +1,3 @@
-import { timingSafeEqual } from "node:crypto";
 import {
   createServer,
   type IncomingMessage,
@@ -6,6 +5,11 @@ import {
   type ServerResponse,
 } from "node:http";
 import { createApplication } from "../app/application.js";
+import {
+  issueAccessToken,
+  verifyAccessToken,
+  type JwtConfig,
+} from "./jwt-auth.js";
 import { AppError } from "../shared/errors.js";
 
 const MAX_BODY_BYTES = 1_000_000;
@@ -13,18 +17,16 @@ const API_PREFIX = "/api/v1";
 
 type JsonObject = Record<string, unknown>;
 
-export function createApiServer(
-  apiToken = process.env.CYBERSARAH_API_TOKEN,
-): Server {
+export function createApiServer(jwtConfig = jwtConfigFromEnv()): Server {
   return createServer((request, response) => {
-    void handleRequest(request, response, apiToken);
+    void handleRequest(request, response, jwtConfig);
   });
 }
 
 export async function handleRequest(
   request: IncomingMessage,
   response: ServerResponse,
-  apiToken = process.env.CYBERSARAH_API_TOKEN,
+  jwtConfig = jwtConfigFromEnv(),
 ): Promise<void> {
   const requestId =
     request.headers["x-request-id"]?.toString() ?? cryptoRandomId();
@@ -45,28 +47,23 @@ export async function handleRequest(
         requestId,
       );
     }
-    if (!apiToken) {
+    if (
+      request.method === "POST" &&
+      url.pathname === `${API_PREFIX}/auth/token`
+    ) {
+      return issueToken(request, response, requestId);
+    }
+    if (!jwtConfig) {
       return sendError(
         response,
         503,
         "PROVIDER_ERROR",
-        "API authentication is not configured.",
+        "JWT authentication is not configured.",
         requestId,
       );
     }
-    if (!isAuthorized(request.headers.authorization, apiToken)) {
-      return sendError(
-        response,
-        401,
-        "UNAUTHORIZED",
-        "A valid Bearer token is required.",
-        requestId,
-      );
-    }
-
-    const userId =
-      request.headers["x-client-user-id"]?.toString() ?? "api-client";
-    const app = createApplication(userId);
+    const claims = authenticate(request.headers.authorization, jwtConfig);
+    const app = createApplication(claims.sub);
     try {
       if (
         request.method === "GET" &&
@@ -190,14 +187,56 @@ function stringField(
   return value;
 }
 
-function isAuthorized(header: string | undefined, expected: string): boolean {
-  const actual = header?.startsWith("Bearer ") ? header.slice(7) : "";
-  const actualBuffer = Buffer.from(actual);
-  const expectedBuffer = Buffer.from(expected);
-  return (
-    actualBuffer.length === expectedBuffer.length &&
-    timingSafeEqual(actualBuffer, expectedBuffer)
-  );
+function authenticate(header: string | undefined, config: JwtConfig) {
+  const token = header?.startsWith("Bearer ") ? header.slice(7).trim() : "";
+  if (!token)
+    throw new AppError("UNAUTHORIZED", "A valid Bearer token is required.");
+  return verifyAccessToken(token, config);
+}
+
+async function issueToken(
+  request: IncomingMessage,
+  response: ServerResponse,
+  requestId: string,
+): Promise<void> {
+  const clientId = process.env.JWT_CLIENT_ID;
+  const clientSecret = process.env.JWT_CLIENT_SECRET;
+  const jwtConfig = jwtConfigFromEnv();
+  if (!clientId || !clientSecret || !jwtConfig) {
+    return sendError(
+      response,
+      503,
+      "PROVIDER_ERROR",
+      "JWT token issuing is not configured.",
+      requestId,
+    );
+  }
+  const body = await readJson(request);
+  if (
+    body.grant_type !== "client_credentials" ||
+    body.client_id !== clientId ||
+    body.client_secret !== clientSecret
+  ) {
+    throw new AppError("UNAUTHORIZED", "Invalid client credentials.");
+  }
+  const token = issueAccessToken(clientId, "user", jwtConfig);
+  return sendJson(response, 200, {
+    access_token: token.accessToken,
+    token_type: "Bearer",
+    expires_in: token.expiresIn,
+    requestId,
+  });
+}
+
+function jwtConfigFromEnv(): JwtConfig | undefined {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) return undefined;
+  return {
+    secret,
+    issuer: process.env.JWT_ISSUER ?? "cybersarah-21",
+    audience: process.env.JWT_AUDIENCE ?? "cybersarah-api",
+    ttlSeconds: Number(process.env.JWT_TTL_SECONDS ?? 3600),
+  };
 }
 
 function statusFor(code: AppError["code"]): number {
