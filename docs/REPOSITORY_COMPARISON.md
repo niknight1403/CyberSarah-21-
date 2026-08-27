@@ -1,56 +1,57 @@
-# Repository-Vergleich und Integrationsentscheidung
+# Repository-Vergleich und Hauptprojektentscheidung
 
-**Hauptprojekt:** `niknight1403/CyberSarah-21-`  
-**Referenzprojekt:** `niknight1403/Ai-Studio-`  
-**Prüfdatum:** 27. August 2026  
+**Prüfdatum:** 27. August 2026
+**Bewertete Repositories:** [`Ai-Studio-`](https://github.com/niknight1403/Ai-Studio-) und [`CyberSarah-21-`](https://github.com/niknight1403/CyberSarah-21-)
 **Autor:** Manus AI
 
-## Zusammenfassung
+## Entscheidung
 
-Beide aktivierten GitHub-Repositories befinden sich im ursprünglichen Initialzustand. Jedes Repository enthält auf dem Standardbranch `main` genau einen Initial-Commit und als einzige versionierte Datei eine minimale `README.md`. Es existieren keine Quelltexte, Paketdefinitionen, Build-Konfigurationen, Tests, Assets, Datenmodelle oder dokumentierten Produktfunktionen, die technisch übernommen werden könnten.
+**CyberSarah-21- ist eindeutig das bessere Hauptprojekt.** Es besitzt inzwischen eine echte technische Basis mit API, JWT-Authentifizierung, SQLite-Persistenz, versionierten Migrationen, verwalteten API-Clients, Token-Rotation, RBAC, Rate Limiting, Security-Headern, CORS-Regeln, Tests, CI/CD-Workflow und ausführlicher Dokumentation. `Ai-Studio-` enthält weiterhin nur eine minimale README und keinen implementierten Projektbestand.
 
-Daraus folgt eine klare und reversible Entscheidung: **CyberSarah-21- bleibt das Hauptprojekt**, während `Ai-Studio-` als geprüfte, derzeit inhaltsleere Referenz dokumentiert wird. Eine Code- oder Feature-Migration wäre nicht sinnvoll, weil sie keine Funktionalität liefern und lediglich unbegründete Architekturannahmen einführen würde.
+Damit wäre ein Wechsel zu `Ai-Studio-` kein technischer Fortschritt, sondern ein vollständiger Neustart. `Ai-Studio-` sollte vorerst als privates Archiv beziehungsweise als mögliche spätere Experimentierfläche behandelt werden. Neue produktive Funktionalität sollte ausschließlich in `CyberSarah-21-` entstehen.
 
-## Vergleich
+## Vergleich des aktuellen GitHub-Stands
 
-| Kriterium | Ai-Studio- | CyberSarah-21- | Integrationsbefund |
-|---|---|---|---|
-| Sichtbarer Projektinhalt | Eine minimale README | Eine minimale README | Keine implementierte Funktionalität |
-| Standardbranch | `main` | `main` | Gleichartig |
-| Commit-Historie | Ein Initial-Commit | Ein Initial-Commit | Keine Entwicklungsbasis |
-| Abhängigkeiten | Keine | Keine | Nichts zu vereinheitlichen |
-| Build- und Laufzeitkonfiguration | Keine | Keine | Kein Buildsystem vorhanden |
-| Tests | Keine | Keine | Keine Testmigration möglich |
-| Assets und Konfigurationen | Keine | Keine | Keine sichere Übernahme möglich |
-| Repository-Sichtbarkeit | Privat | Öffentlich | Kein technischer Integrationsaspekt |
-| Rolle nach der Prüfung | Referenz/Archiv | Hauptprojekt | Entscheidung bestätigt |
+| Kriterium | Ai-Studio- | CyberSarah-21- | Bewertung |
+|---|---:|---:|---|
+| Repository-Sichtbarkeit | Privat | Öffentlich | Kein Qualitätskriterium; Sichtbarkeit muss bewusst entschieden werden |
+| Standardbranch | `main` | `main` | Gleichstand |
+| Commits | 1 | 14 | Klarer Vorteil für CyberSarah-21- |
+| Versionierte Dateien | 1 | 41 | Klarer Vorteil für CyberSarah-21- |
+| Quellcode | Nicht vorhanden | TypeScript-Kern, API und Infrastruktur | Klarer Vorteil für CyberSarah-21- |
+| Persistenz | Nicht vorhanden | SQLite mit drei versionierten Migrationen | Klarer Vorteil für CyberSarah-21- |
+| KI-Anbindung | Nicht vorhanden | OpenAI-kompatibler Provider mit Timeout und Fehlerbehandlung | Klarer Vorteil für CyberSarah-21- |
+| Authentifizierung | Nicht vorhanden | JWT mit HS256, Claims, Ablauf-, Issuer- und Audience-Prüfung | Klarer Vorteil für CyberSarah-21- |
+| Clientverwaltung | Nicht vorhanden | Erstellung, Auflistung, Rotation und Widerruf | Klarer Vorteil für CyberSarah-21- |
+| Autorisierung | Nicht vorhanden | Rollen und granulare Scopes mit Admin-Endpunkten | Klarer Vorteil für CyberSarah-21- |
+| API-Schutz | Nicht vorhanden | Rate Limiting, Security-Header und konfigurierbares CORS | Klarer Vorteil für CyberSarah-21- |
+| Qualitätssicherung | Nicht vorhanden | 18 Tests, Typecheck, Formatcheck und GitHub Actions | Klarer Vorteil für CyberSarah-21- |
+| Dokumentation | Eine Überschrift | Architektur, MVP-Plan, API, OpenAPI und Betriebsnotizen | Klarer Vorteil für CyberSarah-21- |
 
-## Durchgeführte Prüfung
+## Technische Reife
 
-Die Analyse umfasste die versionierten Dateibäume, die Commit-Historien, die vorhandenen Branches sowie die sichtbaren Repository-Metadaten. Beide Dateibäume enthalten ausschließlich `README.md`. Die README-Dateien enthalten keine technische Spezifikation, keine API-Verträge, keine Installationsanweisungen und keine Hinweise auf vorhandene Module.
+`Ai-Studio-` liefert derzeit keine technische Substanz, die bewertet, wiederverwendet oder sicher integriert werden könnte. Es fehlen Quellcode, Paketdefinitionen, Build- und Laufzeitkonfiguration, Tests, Datenmodell, CI/CD und Produktdokumentation. Der einzige Commit ist der Initial-Commit vom 21. August 2026.
 
-> Eine Integration ohne vorhandene Implementierung wäre keine Zusammenführung von Funktionalität, sondern eine spekulative Neuerstellung. Diese wurde bewusst vermieden.
+`CyberSarah-21-` hat sich dagegen von einer leeren Ausgangsbasis zu einem nachvollziehbar versionierten MVP-Kern entwickelt. Die Architektur ist als modularer Monolith angelegt, die zentralen Verträge liegen hinter Ports, Datenbankänderungen werden über einen Migration Runner verwaltet und die API verfügt über dokumentierte Endpunkte. Die aktuell noch offenen Produktionsaufgaben sind Erweiterungen einer vorhandenen Basis, keine grundlegenden Rettungsmaßnahmen.
 
-## Umgesetzte Integration
+## Produktfit
 
-Die sinnvolle Integration besteht in der **Konsolidierung der Projektentscheidung und der technischen Ausgangslage im Hauptprojekt**. Dazu wurde die README von `CyberSarah-21-` erweitert und dieses Dokument als dauerhaft versionierte Entscheidungsgrundlage hinzugefügt. Die Dokumentation stellt sicher, dass die Prüfung reproduzierbar bleibt und bei späteren Beiträgen nicht erneut dieselben Annahmen getroffen werden müssen.
+Für das derzeit dokumentierte Produktziel – eine API-basierte CyberSarah-Plattform mit KI-Orchestrierung und administrierbarer Client-/Berechtigungsverwaltung – passt `CyberSarah-21-` direkt. Die vorhandenen Module bilden bereits die wesentlichen Begriffe des Produkts ab: Clients, Rollen, Scopes, Gespräche, KI-Provider, Migrationen und API-Sicherheit.
 
-Nicht integriert wurden insbesondere Quellcode, Abhängigkeiten, Konfigurationen, Geheimnisse, CI/CD-Dateien, Designs und externe Dienste, weil im Referenzprojekt keine solchen Bestandteile vorhanden waren. Diese Zurückhaltung ist die technisch korrekte Maßnahme und verhindert unnötige oder unsichere Änderungen.
+Der Name `Ai-Studio-` könnte zwar für ein eigenständiges KI-Produkt interessant sein, aber im Repository existiert noch keine Produktdefinition, kein UI, kein Modellworkflow und kein technischer Anker. Ein Wechsel wäre daher nur dann sinnvoll, wenn eine neue, klar getrennte Produktidee verfolgt werden soll, beispielsweise ein kreatives Studio ohne Bezug zur bestehenden CyberSarah-API. Für die aktuelle Produktlinie gibt es keinen sachlichen Grund für einen Wechsel.
 
-## Qualitäts- und Sicherheitsbewertung
+## Integrationsentscheidung
 
-Die Änderung ist risikoarm: Es wurden keine Laufzeitabhängigkeiten eingeführt, keine Zugangsdaten verarbeitet und keine externen Dienste aktiviert. Da beide Ausgangsprojekte keine ausführbare Anwendung enthalten, kann aktuell kein Build- oder Anwendungstest ausgeführt werden. Die strukturelle Prüfung erfolgt über den versionierten Dateibaum und die Git-Differenz.
+Es wird **kein Code aus `Ai-Studio-` übernommen**, weil dort kein Code vorhanden ist. Ebenso werden keine Abhängigkeiten, Konfigurationen, Geheimnisse, Designs oder externen Dienste kopiert. Eine solche Übernahme würde keine Funktion liefern und könnte nur unbegründete Annahmen in das Hauptprojekt einführen.
 
-| Prüfung | Ergebnis |
-|---|---|
-| Datei- und Commitvergleich | Bestanden; beide Ausgangsstände sind minimal |
-| Abhängigkeiten und Buildsystem | Nicht vorhanden; daher keine Regression möglich |
-| Anwendungstests | Nicht ausführbar, da keine Anwendung vorhanden ist |
-| Geheimnisse oder externe Zugangsdaten | Nicht gefunden |
-| Reversibilität | Vollständig gegeben; Änderungen sind auf Dokumentation beschränkt |
+Die sinnvolle Konsolidierung ist deshalb organisatorisch und dokumentarisch: `CyberSarah-21-` bleibt das alleinige Hauptprojekt; `Ai-Studio-` bleibt als private Referenz erhalten. Sollte `Ai-Studio-` künftig echte Implementierungen erhalten, ist vor einer möglichen Übernahme ein neuer Vergleich erforderlich, einschließlich Lizenzprüfung, Dependency-Audit, Testabdeckung, Sicherheitsprüfung und funktionaler Überschneidung.
 
-## Empfohlene nächste Entwicklungsschritte
+## Empfohlene Reihenfolge für CyberSarah-21-
 
-Vor einer technischen Implementierung muss die Produktidee von `CyberSarah-21-` konkretisiert werden. Erforderlich sind mindestens Zielgruppe, Kernnutzen, primäre Nutzerabläufe, gewünschte Plattform, Datenanforderungen und gegebenenfalls die Auswahl externer Dienste. Erst auf dieser Grundlage lassen sich Framework, Projektstruktur, Datenmodell, Sicherheitskonzept und automatisierte Tests verantwortbar festlegen.
+Als nächstes sollte die vorhandene API mit dem mobilen deutschen Dashboard verbunden werden. Danach sind produktionsreife Secret-Manager-Anbindung, asymmetrische JWT-Signaturen mit JWKS, verteiltes Rate Limiting, echte OAuth2-Clientverwaltung, Audit-Events und eine verwaltete relationale Datenbank die wichtigsten technischen Ausbaustufen. Erst wenn diese Produktbasis stabil ist, sollte eine separate `Ai-Studio-`-Produktlinie in Betracht gezogen werden.
 
-Das Repository `Ai-Studio-` sollte bis zum Auftauchen echter, dokumentierter Funktionalität nicht als technische Quelle behandelt werden. Falls dort später Code entsteht, sollte eine erneute Prüfung anhand von Lizenz, Abhängigkeiten, Sicherheitsrisiken, Testabdeckung und funktionaler Überschneidung erfolgen.
+> **Fazit:** Für die aktuelle Zielrichtung ist CyberSarah-21- nicht nur das bessere, sondern das einzige Repository mit einer belastbaren Ausgangsbasis für weitere Entwicklung.
+
+## Prüfgrundlage
+
+Die Bewertung basiert auf den Remote-Dateibäumen, Commit-Historien, Branches und sichtbaren Repository-Metadaten beider GitHub-Repositories. Zum Prüfzeitpunkt hatte `Ai-Studio-` einen Commit und eine versionierte Datei; `CyberSarah-21-` hatte 14 Commits, 41 versionierte Dateien, acht Testdateien, sechs Dokumentationsdateien und einen GitHub-Actions-Workflow.
