@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Typecheck and test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Run all tests
+        run: pnpm test
+
+      - name: Check formatting of CI and migration files
+        run: pnpm exec prettier --check .github/workflows/ci.yml scripts/verify-migrations.mjs package.json
+
+  migrations:
+    name: SQLite migration integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run migration-specific tests
+        run: pnpm exec vitest run test/migrations.test.ts test/sqlite-repository.test.ts
+
+      - name: Apply migrations to a fresh SQLite database
+        env:
+          DATABASE_PATH: ${{ runner.temp }}/cybersarah-ci.sqlite
+        run: pnpm db:migrate
+
+      - name: Verify idempotent migration rerun
+        env:
+          DATABASE_PATH: ${{ runner.temp }}/cybersarah-ci.sqlite
+        run: pnpm db:migrate
+
+      - name: Verify migration journal and schema
+        env:
+          DATABASE_PATH: ${{ runner.temp }}/cybersarah-ci.sqlite
+        run: |
+          test -s "$DATABASE_PATH"
+          node scripts/verify-migrations.mjs
