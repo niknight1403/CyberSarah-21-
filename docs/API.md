@@ -44,6 +44,14 @@ curl -X POST http://localhost:3000/api/v1/conversations \
 
 Jede Antwort enthält eine `requestId`. Fehler folgen dem einheitlichen Format `{ "error": { "code": "...", "message": "..." }, "requestId": "..." }`. Request-Bodies sind auf 1 MB begrenzt; Nachrichten dürfen höchstens 8.000 Zeichen enthalten.
 
+## Rate Limiting und Browser-Schutz
+
+Die API verwendet ein In-Memory-Sliding-Window pro Clientadresse. Das Standardlimit liegt bei 60 Requests pro 60 Sekunden; der Token-Endpunkt besitzt mit fünf Requests pro Fenster ein strengeres Limit. Bei Überschreitung antwortet die API mit `429`, `Retry-After` und den Headern `X-RateLimit-Limit`, `X-RateLimit-Remaining` und `X-RateLimit-Reset`. Die Werte können über `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX` und `AUTH_RATE_LIMIT_MAX` angepasst werden.
+
+Jede Antwort setzt restriktive Helmet-artige Header, darunter `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, eine JSON-kompatible Content-Security-Policy und `Cache-Control: no-store`. HSTS wird nur bei `FORCE_HTTPS=true` gesetzt.
+
+CORS ist standardmäßig deaktiviert. Browser-Ursprünge müssen explizit als kommagetrennte Liste in `CORS_ORIGINS` eingetragen werden, beispielsweise `https://app.example,https://admin.example`. Nicht konfigurierte Ursprünge werden mit `403` abgewiesen. `TRUST_PROXY=true` darf nur gesetzt werden, wenn die Anwendung tatsächlich hinter einem vertrauenswürdigen Reverse Proxy läuft.
+
 ## Sicherheitsgrenzen
 
-JWTs werden serverseitig mit HS256 signiert und verifiziert. Geprüft werden Algorithmus, Signatur, `exp`, `iat`, `iss` und `aud`. JWT-Signaturgeheimnis und Client-Secret werden nicht geloggt oder an Clients zurückgegeben. Der Transport besitzt derzeit noch kein TLS-Terminierungsmodul und sollte deshalb hinter einem HTTPS-Reverse-Proxy oder einer verwalteten Plattform betrieben werden. Rate Limits, Token-Rotation, echte OAuth-Clientverwaltung, CORS-Policy und Audit-Events sind vor einer öffentlichen Freigabe noch zu ergänzen.
+JWTs werden serverseitig mit HS256 signiert und verifiziert. Geprüft werden Algorithmus, Signatur, `exp`, `iat`, `iss` und `aud`. JWT-Signaturgeheimnis und Client-Secret werden nicht geloggt oder an Clients zurückgegeben. Der Transport besitzt derzeit noch kein TLS-Terminierungsmodul und sollte deshalb hinter einem HTTPS-Reverse-Proxy oder einer verwalteten Plattform betrieben werden. Für eine öffentliche Freigabe fehlen weiterhin Token-Rotation, echte OAuth-Clientverwaltung, verteiltes Rate Limiting bei mehreren Instanzen, CORS-Review, TLS und Audit-Events.

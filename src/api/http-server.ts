@@ -11,15 +11,24 @@ import {
   type JwtConfig,
 } from "./jwt-auth.js";
 import { AppError } from "../shared/errors.js";
+import {
+  ApiSecurity,
+  securityConfigFromEnv,
+  type ApiSecurityConfig,
+} from "./security.js";
 
 const MAX_BODY_BYTES = 1_000_000;
 const API_PREFIX = "/api/v1";
 
 type JsonObject = Record<string, unknown>;
 
-export function createApiServer(jwtConfig = jwtConfigFromEnv()): Server {
+export function createApiServer(
+  jwtConfig = jwtConfigFromEnv(),
+  securityConfig: ApiSecurityConfig = securityConfigFromEnv(),
+): Server {
+  const security = new ApiSecurity(securityConfig);
   return createServer((request, response) => {
-    void handleRequest(request, response, jwtConfig);
+    void handleRequest(request, response, jwtConfig, security);
   });
 }
 
@@ -27,6 +36,7 @@ export async function handleRequest(
   request: IncomingMessage,
   response: ServerResponse,
   jwtConfig = jwtConfigFromEnv(),
+  security = new ApiSecurity(securityConfigFromEnv()),
 ): Promise<void> {
   const requestId =
     request.headers["x-request-id"]?.toString() ?? cryptoRandomId();
@@ -34,7 +44,40 @@ export async function handleRequest(
   response.setHeader("content-type", "application/json; charset=utf-8");
 
   try {
+    const origin = request.headers.origin?.toString();
+    if (!security.applyHeaders(response, origin)) {
+      return sendError(
+        response,
+        403,
+        "FORBIDDEN",
+        "Origin is not allowed.",
+        requestId,
+      );
+    }
+    if (request.method === "OPTIONS") {
+      response.statusCode = 204;
+      response.end();
+      return;
+    }
     const url = new URL(request.url ?? "/", "http://localhost");
+    const rate = security.consume(
+      request,
+      url.pathname === `${API_PREFIX}/auth/token` ? "auth" : "api",
+    );
+    setRateLimitHeaders(response, rate);
+    if (!rate.allowed) {
+      response.setHeader(
+        "Retry-After",
+        Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000)),
+      );
+      return sendError(
+        response,
+        429,
+        "RATE_LIMITED",
+        "Too many requests.",
+        requestId,
+      );
+    }
     if (request.method === "GET" && url.pathname === `${API_PREFIX}/health`) {
       return sendJson(response, 200, { status: "ok", requestId });
     }
@@ -237,6 +280,15 @@ function jwtConfigFromEnv(): JwtConfig | undefined {
     audience: process.env.JWT_AUDIENCE ?? "cybersarah-api",
     ttlSeconds: Number(process.env.JWT_TTL_SECONDS ?? 3600),
   };
+}
+
+function setRateLimitHeaders(
+  response: ServerResponse,
+  rate: { limit: number; remaining: number; resetAt: number },
+): void {
+  response.setHeader("X-RateLimit-Limit", rate.limit);
+  response.setHeader("X-RateLimit-Remaining", rate.remaining);
+  response.setHeader("X-RateLimit-Reset", Math.ceil(rate.resetAt / 1000));
 }
 
 function statusFor(code: AppError["code"]): number {
