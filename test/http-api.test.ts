@@ -13,6 +13,7 @@ process.env.DATABASE_PATH = join(directory, "api.sqlite");
 process.env.JWT_SECRET = "test-jwt-secret-that-is-at-least-32-characters-long";
 process.env.JWT_CLIENT_ID = "client-a";
 process.env.JWT_CLIENT_SECRET = "client-secret";
+let currentClientSecret = "client-secret";
 const server = createApiServer();
 
 beforeAll(async () => {
@@ -48,14 +49,14 @@ async function getToken(): Promise<string> {
     body: JSON.stringify({
       grant_type: "client_credentials",
       client_id: "client-a",
-      client_secret: "client-secret",
+      client_secret: currentClientSecret,
     }),
   });
   const body = (await response.json()) as { access_token: string };
   return body.access_token;
 }
 
-describe("HTTP API", () => {
+describe.sequential("HTTP API", () => {
   it("exposes a public health endpoint", async () => {
     const response = await fetch(url("/api/v1/health"));
     expect(response.status).toBe(200);
@@ -68,6 +69,43 @@ describe("HTTP API", () => {
 
     const token = await getToken();
     expect(token.split(".")).toHaveLength(3);
+  });
+
+  it("rotates client credentials and invalidates the old secret", async () => {
+    const response = await fetch(url("/api/v1/auth/rotate"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: "client-a",
+        client_secret: "client-secret",
+      }),
+    });
+    expect(response.status).toBe(200);
+    const rotated = (await response.json()) as { client_secret: string };
+    expect(rotated.client_secret).not.toBe("client-secret");
+    currentClientSecret = rotated.client_secret;
+
+    const oldTokenResponse = await fetch(url("/api/v1/auth/token"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grant_type: "client_credentials",
+        client_id: "client-a",
+        client_secret: "client-secret",
+      }),
+    });
+    expect(oldTokenResponse.status).toBe(401);
+
+    const newTokenResponse = await fetch(url("/api/v1/auth/token"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grant_type: "client_credentials",
+        client_id: "client-a",
+        client_secret: currentClientSecret,
+      }),
+    });
+    expect(newTokenResponse.status).toBe(200);
   });
 
   it("creates and lists conversations for the JWT subject", async () => {

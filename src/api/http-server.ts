@@ -11,6 +11,7 @@ import {
   type JwtConfig,
 } from "./jwt-auth.js";
 import { AppError } from "../shared/errors.js";
+import { openSqliteClientStore } from "../infrastructure/client-repository.js";
 import {
   ApiSecurity,
   securityConfigFromEnv,
@@ -94,7 +95,13 @@ export async function handleRequest(
       request.method === "POST" &&
       url.pathname === `${API_PREFIX}/auth/token`
     ) {
-      return issueToken(request, response, requestId);
+      return await issueToken(request, response, requestId, jwtConfig);
+    }
+    if (
+      request.method === "POST" &&
+      url.pathname === `${API_PREFIX}/auth/rotate`
+    ) {
+      return await rotateClientSecret(request, response, requestId);
     }
     if (!jwtConfig) {
       return sendError(
@@ -106,6 +113,12 @@ export async function handleRequest(
       );
     }
     const claims = authenticate(request.headers.authorization, jwtConfig);
+    const clientStore = openSqliteClientStore();
+    if (!clientStore.clients.findActive(claims.sub)) {
+      clientStore.close();
+      throw new AppError("UNAUTHORIZED", "Client is revoked or expired.");
+    }
+    clientStore.close();
     const app = createApplication(claims.sub);
     try {
       if (
@@ -241,11 +254,9 @@ async function issueToken(
   request: IncomingMessage,
   response: ServerResponse,
   requestId: string,
+  jwtConfig: JwtConfig | undefined,
 ): Promise<void> {
-  const clientId = process.env.JWT_CLIENT_ID;
-  const clientSecret = process.env.JWT_CLIENT_SECRET;
-  const jwtConfig = jwtConfigFromEnv();
-  if (!clientId || !clientSecret || !jwtConfig) {
+  if (!jwtConfig) {
     return sendError(
       response,
       503,
@@ -257,18 +268,60 @@ async function issueToken(
   const body = await readJson(request);
   if (
     body.grant_type !== "client_credentials" ||
-    body.client_id !== clientId ||
-    body.client_secret !== clientSecret
+    typeof body.client_id !== "string" ||
+    typeof body.client_secret !== "string"
   ) {
     throw new AppError("UNAUTHORIZED", "Invalid client credentials.");
   }
-  const token = issueAccessToken(clientId, "user", jwtConfig);
-  return sendJson(response, 200, {
-    access_token: token.accessToken,
-    token_type: "Bearer",
-    expires_in: token.expiresIn,
-    requestId,
-  });
+  const store = openSqliteClientStore();
+  try {
+    const client = store.clients.authenticate(
+      body.client_id,
+      body.client_secret,
+    );
+    if (!client)
+      throw new AppError("UNAUTHORIZED", "Invalid client credentials.");
+    const token = issueAccessToken(client.clientId, "user", jwtConfig);
+    return sendJson(response, 200, {
+      access_token: token.accessToken,
+      token_type: "Bearer",
+      expires_in: token.expiresIn,
+      requestId,
+    });
+  } finally {
+    store.close();
+  }
+}
+
+async function rotateClientSecret(
+  request: IncomingMessage,
+  response: ServerResponse,
+  requestId: string,
+): Promise<void> {
+  const body = await readJson(request);
+  if (
+    typeof body.client_id !== "string" ||
+    typeof body.client_secret !== "string"
+  ) {
+    throw new AppError(
+      "UNAUTHORIZED",
+      "Current client credentials are required.",
+    );
+  }
+  const store = openSqliteClientStore();
+  try {
+    const rotated = store.clients.rotate(body.client_id, body.client_secret);
+    if (!rotated)
+      throw new AppError("UNAUTHORIZED", "Invalid client credentials.");
+    return sendJson(response, 200, {
+      client_id: rotated.client.clientId,
+      client_secret: rotated.clientSecret,
+      token_type: "Bearer",
+      requestId,
+    });
+  } finally {
+    store.close();
+  }
 }
 
 function jwtConfigFromEnv(): JwtConfig | undefined {

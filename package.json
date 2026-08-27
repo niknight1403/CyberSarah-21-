@@ -7,6 +7,10 @@
     "dev": "tsx src/app/main.ts",
     "api": "tsx src/api/http-server.ts",
     "db:migrate": "tsx src/infrastructure/migrate-cli.ts",
+    "clients:create": "tsx src/infrastructure/clients-cli.ts create",
+    "clients:list": "tsx src/infrastructure/clients-cli.ts list",
+    "clients:rotate": "tsx src/infrastructure/clients-cli.ts rotate",
+    "clients:revoke": "tsx src/infrastructure/clients-cli.ts revoke",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "format:check": "prettier --check ."

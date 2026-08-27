@@ -12,7 +12,7 @@ paths:
     get:
       security: []
       responses:
-        '200':
+        "200":
           description: Dienst ist erreichbar.
   /api/v1/auth/token:
     post:
@@ -30,7 +30,7 @@ paths:
                 client_id: { type: string }
                 client_secret: { type: string, format: password }
       responses:
-        '200':
+        "200":
           description: Signiertes Zugriffstoken
           content:
             application/json:
@@ -41,20 +41,47 @@ paths:
                   access_token: { type: string }
                   token_type: { type: string, enum: [Bearer] }
                   expires_in: { type: integer }
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/auth/rotate:
+    post:
+      security: []
+      summary: Client-Secret mit aktuellen Credentials rotieren
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_id, client_secret]
+              properties:
+                client_id: { type: string }
+                client_secret: { type: string, format: password }
+      responses:
+        "200":
+          description: Neues Secret; wird nur einmal zurückgegeben.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [client_id, client_secret]
+                properties:
+                  client_id: { type: string }
+                  client_secret: { type: string, format: password }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/v1/conversations:
     get:
       summary: Eigene Gespräche auflisten
       responses:
-        '200':
+        "200":
           description: Gesprächsliste
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConversationListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                $ref: "#/components/schemas/ConversationListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
       summary: Gespräch erstellen
       requestBody:
@@ -68,14 +95,14 @@ paths:
                   type: string
                   maxLength: 120
       responses:
-        '201':
+        "201":
           description: Erstelltes Gespräch
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConversationResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                $ref: "#/components/schemas/ConversationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/v1/conversations/{conversationId}/messages:
     parameters:
       - name: conversationId
@@ -86,12 +113,12 @@ paths:
     get:
       summary: Nachrichten eines eigenen Gesprächs laden
       responses:
-        '200':
+        "200":
           description: Nachrichtenliste
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
     post:
       summary: Nachricht senden und KI-Antwort erzeugen
       requestBody:
@@ -107,11 +134,11 @@ paths:
                   minLength: 1
                   maxLength: 8000
       responses:
-        '201':
+        "201":
           description: Nutzer- und Assistentenantwort
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '502':
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
           description: KI-Providerfehler
 components:
   securitySchemes:
@@ -131,7 +158,7 @@ components:
       type: object
       required: [data, requestId]
       properties:
-        data: { $ref: '#/components/schemas/Conversation' }
+        data: { $ref: "#/components/schemas/Conversation" }
         requestId: { type: string }
     ConversationListResponse:
       type: object
@@ -139,7 +166,7 @@ components:
       properties:
         data:
           type: array
-          items: { $ref: '#/components/schemas/Conversation' }
+          items: { $ref: "#/components/schemas/Conversation" }
         requestId: { type: string }
   responses:
     Unauthorized:

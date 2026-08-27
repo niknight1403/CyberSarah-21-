@@ -14,11 +14,13 @@ export interface AppliedMigration {
   readonly checksum: string;
 }
 
-export function loadMigrations(directory = join(process.cwd(), "migrations")): Migration[] {
+export function loadMigrations(
+  directory = join(process.cwd(), "migrations"),
+): Migration[] {
   return readdirSync(directory)
     .filter((file) => extname(file) === ".sql")
     .map((file) => {
-      const match = /^(\d+)_([a-z0-9-]+)\.sql$/i.exec(file);
+      const match = /^(\d+)_([a-z0-9_-]+)\.sql$/i.exec(file);
       if (!match) throw new Error(`Invalid migration filename: ${file}`);
       return {
         version: Number(match[1]),
@@ -29,7 +31,10 @@ export function loadMigrations(directory = join(process.cwd(), "migrations")): M
     .sort((a, b) => a.version - b.version);
 }
 
-export function migrate(db: DatabaseSync, directory = join(process.cwd(), "migrations")): AppliedMigration[] {
+export function migrate(
+  db: DatabaseSync,
+  directory = join(process.cwd(), "migrations"),
+): AppliedMigration[] {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version INTEGER PRIMARY KEY,
@@ -41,17 +46,23 @@ export function migrate(db: DatabaseSync, directory = join(process.cwd(), "migra
 
   const migrations = loadMigrations(directory);
   assertUniqueVersions(migrations);
-  const applied = db.prepare(
-    "SELECT version, name, checksum FROM schema_migrations ORDER BY version ASC",
-  ).all() as unknown as AppliedMigration[];
-  const appliedByVersion = new Map(applied.map((migration) => [migration.version, migration]));
+  const applied = db
+    .prepare(
+      "SELECT version, name, checksum FROM schema_migrations ORDER BY version ASC",
+    )
+    .all() as unknown as AppliedMigration[];
+  const appliedByVersion = new Map(
+    applied.map((migration) => [migration.version, migration]),
+  );
 
   for (const migration of migrations) {
     const existing = appliedByVersion.get(migration.version);
     const checksum = checksumOf(migration.sql);
     if (existing) {
       if (existing.name !== migration.name || existing.checksum !== checksum) {
-        throw new Error(`Applied migration ${migration.version} does not match its local file.`);
+        throw new Error(
+          `Applied migration ${migration.version} does not match its local file.`,
+        );
       }
       continue;
     }
@@ -61,7 +72,12 @@ export function migrate(db: DatabaseSync, directory = join(process.cwd(), "migra
       db.exec(migration.sql);
       db.prepare(
         "INSERT INTO schema_migrations (version, name, checksum, applied_at) VALUES (?, ?, ?, ?)",
-      ).run(migration.version, migration.name, checksum, new Date().toISOString());
+      ).run(
+        migration.version,
+        migration.name,
+        checksum,
+        new Date().toISOString(),
+      );
       db.exec("COMMIT");
     } catch (error) {
       db.exec("ROLLBACK");
@@ -69,15 +85,18 @@ export function migrate(db: DatabaseSync, directory = join(process.cwd(), "migra
     }
   }
 
-  return db.prepare(
-    "SELECT version, name, checksum FROM schema_migrations ORDER BY version ASC",
-  ).all() as unknown as AppliedMigration[];
+  return db
+    .prepare(
+      "SELECT version, name, checksum FROM schema_migrations ORDER BY version ASC",
+    )
+    .all() as unknown as AppliedMigration[];
 }
 
 function assertUniqueVersions(migrations: Migration[]): void {
   const seen = new Set<number>();
   for (const migration of migrations) {
-    if (seen.has(migration.version)) throw new Error(`Duplicate migration version: ${migration.version}`);
+    if (seen.has(migration.version))
+      throw new Error(`Duplicate migration version: ${migration.version}`);
     seen.add(migration.version);
   }
 }
